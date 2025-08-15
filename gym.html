@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>حاسبة السعرات وخطة دايت يومية</title>
+  <!-- Tailwind via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <!-- html2canvas & jsPDF for PDF export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNa5lO+4w5G3wQ1iUD4C6AvqK7w3gq6qQz2e0XoYg0d6uo1zM1b1b3G2+eD2a2k3o3JpKj7m1G9O2G3I9G9s9w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-/Fq0qTn9WQ8lFQ0j8m7f3xkQy+eXw3v6b0wQqXxFQ9g9Y1m6n6g1r7uP+E9E3t0w0zj4ZCwqzM1Zy6p5j3Y0w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <style>
+    :root { --radius: 18px; }
+    *{ font-family: 'Cairo', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    .card{ border-radius: var(--radius); box-shadow: 0 10px 25px rgba(0,0,0,.06); }
+    .soft-border{ border:1px solid rgba(0,0,0,.06); }
+    .pill{ border-radius: 999px; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+  <!-- Header -->
+  <header class="sticky top-0 z-20 bg-white/80 backdrop-blur soft-border">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+      <h1 class="text-2xl md:text-3xl font-extrabold">حاسبة السعرات وخطة دايت يومية</h1>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6 space-y-6">
+    <!-- Form -->
+    <section class="card bg-white soft-border p-5">
+      <h2 class="text-xl font-bold mb-3">بياناتك</h2>
+      <div class="grid md:grid-cols-3 gap-4">
+        <label class="block">
+          <span class="text-sm mb-1 block">النوع</span>
+          <select id="gender" class="w-full rounded-xl border p-2.5">
+            <option value="male">ذكر</option>
+            <option value="female">أنثى</option>
+          </select>
+        </label>
+        <label class="block">
+          <span class="text-sm mb-1 block">العمر (سنة)</span>
+          <input id="age" type="number" min="12" max="100" value="25" class="w-full rounded-xl border p-2.5"/>
+        </label>
+        <label class="block">
+          <span class="text-sm mb-1 block">الطول (سم)</span>
+          <input id="height" type="number" min="120" max="230" value="175" class="w-full rounded-xl border p-2.5"/>
+        </label>
+        <label class="block">
+          <span class="text-sm mb-1 block">الوزن (كجم)</span>
+          <input id="weight" type="number" min="30" max="300" value="75" class="w-full rounded-xl border p-2.5"/>
+        </label>
+        <label class="block">
+          <span class="text-sm mb-1 block">مستوى النشاط</span>
+          <select id="activity" class="w-full rounded-xl border p-2.5">
+            <option value="sedentary">قليل (بدون تمرين تقريبًا)</option>
+            <option value="light">خفيف (1–3 أيام أسبوعيًا)</option>
+            <option value="moderate" selected>متوسط (3–5 أيام)</option>
+            <option value="active">عالٍ (6–7 أيام)</option>
+            <option value="athlete">رياضي (شاق)</option>
+          </select>
+        </label>
+        <label class="block">
+          <span class="text-sm mb-1 block">الهدف</span>
+          <select id="goal" class="w-full rounded-xl border p-2.5">
+            <option value="maintain">ثبات</option>
+            <option value="cut">تنشيف</option>
+            <option value="bulk">تضخيم</option>
+          </select>
+        </label>
+      </div>
+      <div class="mt-4 flex gap-2 flex-wrap">
+        <button id="calcBtn" class="rounded-xl px-4 py-2.5 bg-black text-white hover:bg-gray-800">احسب</button>
+        <button id="planBtn" class="rounded-xl px-4 py-2.5 border border-gray-300 hover:bg-gray-100">ولّد خطة دايت يومية</button>
+        <button id="resetBtn" class="rounded-xl px-4 py-2.5 border border-gray-300 hover:bg-gray-100">إعادة تعيين</button>
+      </div>
+    </section>
+
+    <!-- Results summary -->
+    <section class="grid md:grid-cols-3 gap-4">
+      <div class="card bg-white soft-border p-5">
+        <h3 class="text-lg font-bold mb-2">الحرق الأساسي BMR</h3>
+        <div class="text-3xl font-black" id="bmrVal">—</div>
+        <div class="text-sm text-gray-500 mt-1">معادلة Mifflin-St Jeor</div>
+      </div>
+      <div class="card bg-white soft-border p-5">
+        <h3 class="text-lg font-bold mb-2">الصرف الكُلّي TDEE</h3>
+        <div class="text-3xl font-black" id="tdeeVal">—</div>
+        <div class="text-sm text-gray-500 mt-1">يشمل النشاط اليومي</div>
+      </div>
+      <div class="card bg-white soft-border p-5">
+        <h3 class="text-lg font-bold mb-3">سعرات الهدف</h3>
+        <div class="space-y-1 text-sm" id="goalCals">
+          <div class="flex items-center justify-between"><span>ثبات</span><span id="calMaintain">—</span></div>
+          <div class="flex items-center justify-between"><span>تنشيف (-25%)</span><span id="calCut">—</span></div>
+          <div class="flex items-center justify-between"><span>تضخيم (+15%)</span><span id="calBulk">—</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Macros -->
+    <section class="card bg-white soft-border p-5">
+      <h3 class="text-lg font-bold mb-3">توزيع الماكروز حسب الهدف</h3>
+      <div class="grid md:grid-cols-3 gap-4 text-center">
+        <div class="rounded-xl bg-gray-100 p-4">
+          <div class="text-sm text-gray-600">بروتين</div>
+          <div class="text-2xl font-extrabold" id="macroProtein">—</div>
+        </div>
+        <div class="rounded-xl bg-gray-100 p-4">
+          <div class="text-sm text-gray-600">كارب</div>
+          <div class="text-2xl font-extrabold" id="macroCarb">—</div>
+        </div>
+        <div class="rounded-xl bg-gray-100 p-4">
+          <div class="text-sm text-gray-600">دهون</div>
+          <div class="text-2xl font-extrabold" id="macroFat">—</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Meal plan (render target) -->
+    <section class="card bg-white soft-border p-5 hidden" id="planCard">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-xl font-bold">خطة دايت يومية</h3>
+        <div class="text-sm text-gray-500">سعرات الهدف: <span class="font-bold" id="planKcal">—</span></div>
+      </div>
+
+      <div id="planPrintable" class="space-y-4">
+        <div id="mealsGrid" class="grid md:grid-cols-2 gap-4"></div>
+        <div class="rounded-xl bg-yellow-50 border border-yellow-200 p-4 text-sm leading-7">
+          <div class="font-bold mb-1">نصائح سريعة</div>
+          <ul class="list-disc pr-6 space-y-1">
+            <li>اشرب ماء كفاية (2–3 لتر يوميًا).</li>
+            <li>المشي 6–10 آلاف خطوة ممتاز مع هدف التنشيف.</li>
+            <li>وزن أسبوعي بنفس التوقيت يعطي قياس أدق.</li>
+            <li>نم 7–8 ساعات لتحسين الحرق والتعافي.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="mt-4 flex gap-2">
+        <button id="pdfBtn" class="rounded-xl px-4 py-2.5 bg-black text-white hover:bg-gray-800">تنزيل PDF</button>
+        <button id="regenBtn" class="rounded-xl px-4 py-2.5 border border-gray-300 hover:bg-gray-100">إعادة التوليد</button>
+      </div>
+    </section>
+
+    <!-- Notes -->
+    <section class="card bg-white soft-border p-5">
+      <h3 class="text-lg font-bold mb-2">ملاحظات مهمة</h3>
+      <ul class="list-disc pr-6 text-sm space-y-1 text-gray-600">
+        <li>الأرقام تقديرية وتحتاج ضبطًا حسب الاستجابة خلال 2–3 أسابيع.</li>
+        <li>في التنشيف: لو الوزن ثابت أسبوعين، جرّب تقليل 100–150 ك.س.</li>
+        <li>في التضخيم: استهدف زيادة 0.25–0.5 كجم/أسبوع.</li>
+      </ul>
+    </section>
+
+    <footer class="text-center text-xs text-gray-500 py-8">© <span id="year"></span> — أداة مجانية</footer>
+  </main>
+
+<script>
+// ===== Utilities =====
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => Number.isFinite(n) ? n.toLocaleString('ar-EG') : '—';
+
+function mifflin({gender, age, heightCm, weightKg}){
+  const base = 10*weightKg + 6.25*heightCm - 5*age;
+  return gender==='male' ? base + 5 : base - 161;
+}
+function activityFactor(level){
+  return ({sedentary:1.2, light:1.375, moderate:1.55, active:1.725, athlete:1.9})[level]||1.2;
+}
+function kcalToMacros({kcal, weightKg, goal}){
+  const proteinPerKg = goal==='cut' ? 2.0 : goal==='bulk' ? 2.0 : 1.6;
+  const proteinG = Math.round(proteinPerKg * weightKg);
+  const proteinKcal = proteinG*4;
+  const fatKcal = Math.round(kcal*0.25);
+  const fatG = Math.round(fatKcal/9);
+  const carbsKcal = Math.max(kcal - proteinKcal - fatKcal, 0);
+  const carbsG = Math.round(carbsKcal/4);
+  return {proteinG, fatG, carbsG};
+}
+
+const cheapSubs = {
+  protein: [
+    { name:'بيض مسلوق', unit:'بيضة', grams:50, kcal:78, protein:6, icon:'🥚' },
+    { name:'تونة مصفاة (علبة)', unit:'علبة', grams:140, kcal:160, protein:30, icon:'🐟' },
+    { name:'فول مدمس', unit:'كوب', grams:170, kcal:240, protein:12, icon:'🫘' },
+    { name:'زبادي قليل الدسم', unit:'علبة', grams:170, kcal:100, protein:10, icon:'🥛' },
+    { name:'جبنة قريش', unit:'100 جم', grams:100, kcal:98, protein:11, icon:'🧀' },
+    { name:'صدور فراخ مشوية', unit:'100 جم', grams:100, kcal:165, protein:31, icon:'🍗' },
+  ],
+  carbs: [
+    { name:'أرز أبيض مسلوق', unit:'كوب', grams:160, kcal:205, carbs:45, icon:'🍚' },
+    { name:'عيش بلدي', unit:'رغيف', grams:90, kcal:260, carbs:50, icon:'🥖' },
+    { name:'بطاطس مسلوقة', unit:'حبة', grams:150, kcal:110, carbs:26, icon:'🥔' },
+    { name:'شوفان', unit:'نصف كوب', grams:40, kcal:150, carbs:27, icon:'🌾' },
+    { name:'مكرونة مسلوقة', unit:'كوب', grams:140, kcal:220, carbs:43, icon:'🍝' },
+  ],
+  fats: [
+    { name:'زيت زيتون', unit:'ملعقة كبيرة', grams:14, kcal:119, fat:13.5, icon:'🫒' },
+    { name:'طحينة', unit:'ملعقة كبيرة', grams:15, kcal:89, fat:8, icon:'🥣' },
+    { name:'فول سوداني', unit:'ملعقة كبيرة', grams:16, kcal:94, fat:8, icon:'🥜' },
+    { name:'مكسرات مشكلة', unit:'30 جم', grams:30, kcal:180, fat:16, icon:'🥜' },
+  ],
+};
+function gramsToServing(targetG, item, macroKey){
+  const per = item[macroKey]||0; if(!per) return {servings:0, kcal:0};
+  const servings = Math.max(Math.round((targetG/per)*10)/10, 0);
+  const kcal = Math.round(servings*item.kcal);
+  return {servings, kcal};
+}
+
+function buildMealPlan({kcal, macros}){
+  // 5 وجبات: إفطار 25%، سناك 10%، غداء 35%، سناك 10%، عشاء 20%
+  const splits = [0.25, 0.10, 0.35, 0.10, 0.20];
+  const labels = ['الإفطار','سناك','الغداء','سناك','العشاء'];
+  const meals=[];
+  for(let i=0;i<splits.length;i++){
+    const mkcal = Math.round(kcal*splits[i]);
+    const mP = Math.round(macros.proteinG*splits[i]);
+    const mF = Math.round(macros.fatG*splits[i]);
+    const mC = Math.round(macros.carbsG*splits[i]);
+    const p = cheapSubs.protein[i % cheapSubs.protein.length];
+    const c = cheapSubs.carbs[i % cheapSubs.carbs.length];
+    const f = cheapSubs.fats[i % cheapSubs.fats.length];
+    const pCalc = gramsToServing(mP, p, 'protein');
+    const cCalc = gramsToServing(mC, c, 'carbs');
+    const fCalc = gramsToServing(mF, f, 'fat');
+    meals.push({
+      label: labels[i], kcal: mkcal, target:{protein:mP, carbs:mC, fat:mF},
+      items:[ { ...p, macro:'بروتين', ...pCalc }, { ...c, macro:'كارب', ...cCalc }, { ...f, macro:'دهون', ...fCalc } ]
+    });
+  }
+  return meals;
+}
+
+// ===== App State (simple) =====
+const state = {
+  form: { gender:'male', age:25, heightCm:175, weightKg:75, activity:'moderate', goal:'maintain' },
+  results: null,
+  plan: null,
+};
+
+// Load saved
+(function loadSaved(){
+  try{
+    const saved = JSON.parse(localStorage.getItem('diet_planner_html')||'null');
+    if(saved && saved.form){ state.form = { ...state.form, ...saved.form } }
+  }catch{}
+})();
+
+// Apply form to inputs
+(function initInputs(){
+  $('gender').value = state.form.gender;
+  $('age').value = state.form.age;
+  $('height').value = state.form.heightCm;
+  $('weight').value = state.form.weightKg;
+  $('activity').value = state.form.activity;
+  $('goal').value = state.form.goal;
+  $('year').textContent = new Date().getFullYear();
+})();
+
+function recalc(){
+  const form = {
+    gender: $('gender').value,
+    age: Number($('age').value),
+    heightCm: Number($('height').value),
+    weightKg: Number($('weight').value),
+    activity: $('activity').value,
+    goal: $('goal').value,
+  };
+  state.form = form;
+  localStorage.setItem('diet_planner_html', JSON.stringify({form}));
+
+  const bmr = Math.round(mifflin(form));
+  const tdee = Math.round(bmr*activityFactor(form.activity));
+  const calories = {
+    maintain: tdee,
+    cut: Math.round(tdee*0.75), // -25%
+    bulk: Math.round(tdee*1.15), // +15%
+  };
+  const macros = {
+    maintain: kcalToMacros({kcal: calories.maintain, weightKg: form.weightKg, goal:'maintain'}),
+    cut: kcalToMacros({kcal: calories.cut, weightKg: form.weightKg, goal:'cut'}),
+    bulk: kcalToMacros({kcal: calories.bulk, weightKg: form.weightKg, goal:'bulk'}),
+  };
+  state.results = { bmr, tdee, calories, macros };
+
+  // Update UI
+  $('bmrVal').textContent = fmt(bmr)+' ك.س/يوم';
+  $('tdeeVal').textContent = fmt(tdee)+' ك.س/يوم';
+  $('calMaintain').textContent = fmt(calories.maintain)+' ك.س';
+  $('calCut').textContent = fmt(calories.cut)+' ك.س';
+  $('calBulk').textContent = fmt(calories.bulk)+' ك.س';
+
+  const active = macros[form.goal];
+  $('macroProtein').textContent = fmt(active.proteinG)+' جم/يوم';
+  $('macroCarb').textContent = fmt(active.carbsG)+' جم/يوم';
+  $('macroFat').textContent = fmt(active.fatG)+' جم/يوم';
+}
+
+function renderPlan(){
+  if(!state.results) recalc();
+  const form = state.form;
+  const kcal = state.results.calories[form.goal];
+  const macros = state.results.macros[form.goal];
+  const meals = buildMealPlan({kcal, macros});
+  state.plan = {kcal, macros, meals, goal: form.goal};
+  $('planKcal').textContent = fmt(kcal)+' ك.س';
+
+  const grid = $('mealsGrid');
+  grid.innerHTML = '';
+  meals.forEach((meal, idx)=>{
+    const mealDiv = document.createElement('div');
+    mealDiv.className = 'rounded-xl border p-4 bg-white/80 soft-border';
+    mealDiv.innerHTML = `
+      <div class="flex items-center justify-between mb-2">
+        <div class="font-bold">${meal.label}</div>
+        <div class="text-xs text-gray-500">هدف: ${meal.target.protein}ب / ${meal.target.carbs}ك / ${meal.target.fat}د • ~${meal.kcal} ك.س</div>
+      </div>
+      <div class="space-y-3">
+        ${meal.items.map(it => `
+          <div class="flex items-start justify-between gap-3">
+            <div class="text-sm">
+              <div class="font-semibold">${it.macro}: ${it.icon||''} ${it.name}</div>
+              <div class="text-gray-600">الكمية المقترحة: <span class="font-bold">${it.servings}</span> × ${it.unit} (~${it.grams}جم)</div>
+            </div>
+            <div class="text-right text-xs text-gray-500">~ ${it.kcal} ك.س</div>
+          </div>
+        `).join('')}
+      </div>
+      <details class="mt-3 text-sm">
+        <summary class="cursor-pointer select-none font-medium">بدائل رخيصة</summary>
+        <div class="mt-2 grid grid-cols-3 gap-2">
+          <div>
+            <div class="text-xs text-gray-500 mb-1">بروتين</div>
+            <select class="w-full border rounded-lg p-2 text-xs" data-kind="protein" data-idx="${idx}">
+              ${cheapSubs.protein.map((p,i)=>`<option value="${i}">${p.name}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <div class="text-xs text-gray-500 mb-1">كارب</div>
+            <select class="w-full border rounded-lg p-2 text-xs" data-kind="carbs" data-idx="${idx}">
+              ${cheapSubs.carbs.map((c,i)=>`<option value="${i}">${c.name}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <div class="text-xs text-gray-500 mb-1">دهون</div>
+            <select class="w-full border rounded-lg p-2 text-xs" data-kind="fats" data-idx="${idx}">
+              ${cheapSubs.fats.map((f,i)=>`<option value="${i}">${f.name}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+      </details>
+    `;
+    grid.appendChild(mealDiv);
+  });
+
+  // Hook change events for selects inside plan
+  grid.querySelectorAll('select').forEach(sel=>{
+    sel.addEventListener('change', (e)=>{
+      const idx = Number(e.target.getAttribute('data-idx'));
+      const kind = e.target.getAttribute('data-kind');
+      const iSel = Number(e.target.value);
+      const meal = state.plan.meals[idx];
+      const keyMap = {protein:0, carbs:1, fats:2};
+      const itemArr = cheapSubs[kind];
+      const macroKey = kind==='protein' ? 'protein' : (kind==='carbs' ? 'carbs' : 'fat');
+      const target = kind==='protein' ? meal.target.protein : kind==='carbs' ? meal.target.carbs : meal.target.fat;
+      const chosen = itemArr[iSel];
+      const calc = gramsToServing(target, chosen, macroKey);
+      meal.items[keyMap[kind]] = { ...chosen, macro: kind==='protein'? 'بروتين' : kind==='carbs' ? 'كارب' : 'دهون', ...calc };
+      renderPlan(); // re-render to reflect
+    });
+  });
+
+  $('planCard').classList.remove('hidden');
+}
+
+async function downloadPDF(){
+  const node = document.getElementById('planPrintable');
+  const canvas = await html2canvas(node, {scale:2});
+  const imgData = canvas.toDataURL('image/png');
+  const pdf = new jspdf.jsPDF({orientation:'p', unit:'mm', format:'a4'});
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const imgW = pageW;
+  const imgH = canvas.height * imgW / canvas.width;
+  let y = 0;
+  pdf.addImage(imgData, 'PNG', 0, y, imgW, imgH);
+  let remaining = imgH - pageH;
+  while(remaining > 0){
+    y -= pageH;
+    pdf.addPage();
+    pdf.addImage(imgData, 'PNG', 0, y, imgW, imgH);
+    remaining -= pageH;
+  }
+  const goalTxt = {maintain:'ثبات', cut:'تنشيف', bulk:'تضخيم'}[state.form.goal]||'الخطة';
+  pdf.save(`خطة-دايت-يومية-${goalTxt}.pdf`);
+}
+
+// ===== Events =====
+$('calcBtn').addEventListener('click', recalc);
+$('planBtn').addEventListener('click', ()=>{ recalc(); renderPlan(); window.scrollTo({top: document.getElementById('planCard').offsetTop - 20, behavior:'smooth'}); });
+$('regenBtn').addEventListener('click', ()=>{ renderPlan(); });
+$('pdfBtn').addEventListener('click', downloadPDF);
+$('resetBtn').addEventListener('click', ()=>{
+  $('gender').value='male'; $('age').value=25; $('height').value=175; $('weight').value=75; $('activity').value='moderate'; $('goal').value='maintain';
+  recalc();
+});
+
+// Auto-initial calc on load
+recalc();
+</script>
+</body>
+</html>
